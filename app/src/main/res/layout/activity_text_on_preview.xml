@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.android.grafika.TextOnPreviewActivity">
+
+    <com.android.grafika.AspectFrameLayout
+        android:id="@+id/text_on_preview_afl"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_below="@id/capture_button"
+        android:layout_centerInParent="true">
+
+        <SurfaceView
+            android:id="@+id/text_on_preview_surfaceview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center" />
+
+    </com.android.grafika.AspectFrameLayout>
+
+</RelativeLayout>
