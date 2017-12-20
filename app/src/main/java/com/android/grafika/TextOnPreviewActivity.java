@@ -12,6 +12,7 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import com.android.grafika.camera.InputCamera;
 import com.android.grafika.gles.Drawable2d;
 import com.android.grafika.gles.EglCore;
 import com.android.grafika.gles.Sprite3d;
@@ -36,12 +37,8 @@ import java.lang.ref.WeakReference;
 public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Callback,
         SurfaceTexture.OnFrameAvailableListener {
     private static final String TAG = MainActivity.TAG;
-
-    private static final int VIDEO_WIDTH = 1280;  // dimensions for 720p video
-    private static final int VIDEO_HEIGHT = 720;
-    private static final int VIDEO_ORIENTATION = 270;
-    private static final int DESIRED_PREVIEW_FPS = 30;
     private final float[] mTexMatrix = new float[16];
+    private InputCamera inputCamera;
     private float[] mDisplayProjectionMatrix = new float[16];
 
     private EglCore mEglCore;
@@ -62,6 +59,8 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_text_on_preview);
 
+        inputCamera = InputCamera.useBackCamera();
+
         displaySurfaceView = (SurfaceView) findViewById(R.id.text_on_preview_surfaceview);
         SurfaceHolder sh = displaySurfaceView.getHolder();
         sh.addCallback(this);
@@ -72,10 +71,8 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
     @Override
     protected void onResume() {
         super.onResume();
-
-        // Ideally, the frames from the camera are at the same resolution as the input to
-        // the video encoder so we don't have to scale.
-        openCamera(VIDEO_WIDTH, VIDEO_HEIGHT, DESIRED_PREVIEW_FPS, VIDEO_ORIENTATION);
+        openCamera(inputCamera.getCameraWidth(), inputCamera.getCameraHeight(),
+                inputCamera.getFps(), inputCamera.getDisplayOrientation());
     }
 
     @Override
@@ -110,36 +107,21 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
         if (mCamera != null) {
             throw new RuntimeException("camera already initialized");
         }
-
         if (orientation != 0 && orientation != 90 && orientation != 180 && orientation != 270) {
             throw new RuntimeException("Orientation values must be in {0,90,180,270}");
         }
 
-        Camera.CameraInfo info = new Camera.CameraInfo();
-
-        // Try to find a front-facing camera (e.g. for videoconferencing).
-        int numCameras = Camera.getNumberOfCameras();
-        for (int i = 0; i < numCameras; i++) {
-            Camera.getCameraInfo(i, info);
-            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                mCamera = Camera.open(i);
-                break;
-            }
-        }
-        if (mCamera == null) {
-            Log.d(TAG, "No front-facing camera found; opening default");
-            mCamera = Camera.open();    // opens first back-facing camera
-        }
+        mCamera = Camera.open(inputCamera.getCameraIndex());
         if (mCamera == null) {
             throw new RuntimeException("Unable to open camera");
         }
 
         Camera.Parameters parms = mCamera.getParameters();
-
         CameraUtils.choosePreviewSize(parms, desiredWidth, desiredHeight);
 
         // Try to set the frame rate to a constant value.
-        float cameraPreviewThousandFps = CameraUtils.chooseFixedPreviewFps(parms, desiredFps * 1000);
+        float cameraPreviewThousandFps = CameraUtils.chooseFixedPreviewFps(parms,
+                desiredFps * 1000);
 
         // Give the camera a hint that we're recording video.  This can have a big
         // impact on frame rate.
@@ -180,10 +162,19 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
         mDisplaySurface = new WindowSurface(mEglCore, holder.getSurface(), false);
         mDisplaySurface.makeCurrent();
 
-        Matrix.orthoM(mDisplayProjectionMatrix, 0, 0, VIDEO_WIDTH,
-                0, VIDEO_HEIGHT, -1, 1);
+        float screenAspect = ((float) mDisplaySurface.getWidth()) / mDisplaySurface.getHeight();
 
-        mVideoSprite = new Sprite3d(new Drawable2d(VIDEO_WIDTH, VIDEO_HEIGHT));
+        float near = -1.0f, far = 1.0f,
+                right = inputCamera.getDisplayWidth() / 2,
+                top = right / screenAspect;
+
+        Matrix.orthoM(mDisplayProjectionMatrix, 0,
+                -right, right,
+                -top, top,
+                near, far);
+
+        mVideoSprite = new Sprite3d(new Drawable2d(inputCamera.getDisplayWidth(),
+                inputCamera.getDisplayHeight()));
         mProgram = new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT);
         mTextureId = mProgram.createTextureObject();
         mVideoSprite.setTextureId(mTextureId);
