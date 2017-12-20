@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.opengl.GLES20;
+import android.opengl.Matrix;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -11,8 +12,9 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import com.android.grafika.gles.Drawable2d;
 import com.android.grafika.gles.EglCore;
-import com.android.grafika.gles.FullFrameRect;
+import com.android.grafika.gles.Sprite3d;
 import com.android.grafika.gles.Texture2dProgram;
 import com.android.grafika.gles.WindowSurface;
 
@@ -37,25 +39,31 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
 
     private static final int VIDEO_WIDTH = 1280;  // dimensions for 720p video
     private static final int VIDEO_HEIGHT = 720;
+    private static final int VIDEO_ORIENTATION = 270;
     private static final int DESIRED_PREVIEW_FPS = 30;
-    private final float[] mTmpMatrix = new float[16];
+    private final float[] mTexMatrix = new float[16];
+    private float[] mDisplayProjectionMatrix = new float[16];
+
     private EglCore mEglCore;
     private WindowSurface mDisplaySurface;
     private SurfaceTexture mCameraTexture;  // receives the output from the camera preview
-    private FullFrameRect mFullFrameBlit;
+    private Sprite3d mVideoSprite;
+    private Texture2dProgram mProgram;
     private int mTextureId;
 
     private Camera mCamera;
 
     private MainHandler mHandler;
 
+    private SurfaceView displaySurfaceView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_text_on_preview);
 
-        SurfaceView sv = (SurfaceView) findViewById(R.id.text_on_preview_surfaceview);
-        SurfaceHolder sh = sv.getHolder();
+        displaySurfaceView = (SurfaceView) findViewById(R.id.text_on_preview_surfaceview);
+        SurfaceHolder sh = displaySurfaceView.getHolder();
         sh.addCallback(this);
 
         mHandler = new MainHandler(this);
@@ -67,7 +75,7 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
 
         // Ideally, the frames from the camera are at the same resolution as the input to
         // the video encoder so we don't have to scale.
-        openCamera(VIDEO_WIDTH, VIDEO_HEIGHT, DESIRED_PREVIEW_FPS);
+        openCamera(VIDEO_WIDTH, VIDEO_HEIGHT, DESIRED_PREVIEW_FPS, VIDEO_ORIENTATION);
     }
 
     @Override
@@ -83,9 +91,8 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
             mDisplaySurface.release();
             mDisplaySurface = null;
         }
-        if (mFullFrameBlit != null) {
-            mFullFrameBlit.release(false);
-            mFullFrameBlit = null;
+        if (mVideoSprite != null) {
+            mVideoSprite = null;
         }
         if (mEglCore != null) {
             mEglCore.release();
@@ -99,9 +106,13 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
      * <p>
      * Sets mCameraPreviewFps to the expected frame rate (which might actually be variable).
      */
-    private void openCamera(int desiredWidth, int desiredHeight, int desiredFps) {
+    private void openCamera(int desiredWidth, int desiredHeight, int desiredFps, int orientation) {
         if (mCamera != null) {
             throw new RuntimeException("camera already initialized");
+        }
+
+        if (orientation != 0 && orientation != 90 && orientation != 180 && orientation != 270) {
+            throw new RuntimeException("Orientation values must be in {0,90,180,270}");
         }
 
         Camera.CameraInfo info = new Camera.CameraInfo();
@@ -133,17 +144,13 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
         // Give the camera a hint that we're recording video.  This can have a big
         // impact on frame rate.
         parms.setRecordingHint(true);
-
+        mCamera.setDisplayOrientation(orientation);
         mCamera.setParameters(parms);
 
         Camera.Size cameraPreviewSize = parms.getPreviewSize();
         String previewFacts = cameraPreviewSize.width + "x" + cameraPreviewSize.height +
                 " @" + (cameraPreviewThousandFps / 1000.0f) + "fps";
         Log.i(TAG, "Camera config: " + previewFacts);
-
-        // Set the preview aspect ratio.
-        AspectFrameLayout layout = (AspectFrameLayout) findViewById(R.id.text_on_preview_afl);
-        layout.setAspectRatio((double) cameraPreviewSize.width / cameraPreviewSize.height);
     }
 
     /**
@@ -173,13 +180,24 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
         mDisplaySurface = new WindowSurface(mEglCore, holder.getSurface(), false);
         mDisplaySurface.makeCurrent();
 
-        mFullFrameBlit = new FullFrameRect(
-                new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
-        mTextureId = mFullFrameBlit.createTextureObject();
+        Matrix.orthoM(mDisplayProjectionMatrix, 0, 0, VIDEO_WIDTH,
+                0, VIDEO_HEIGHT, -1, 1);
+
+        mVideoSprite = new Sprite3d(new Drawable2d(VIDEO_WIDTH, VIDEO_HEIGHT));
+        mProgram = new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT);
+        mTextureId = mProgram.createTextureObject();
+        mVideoSprite.setTextureId(mTextureId);
+
+        mVideoSprite.transform(new Sprite3d.Transformer()
+                .reset()
+                .translate(0, 0, 0)
+                .rotateAroundZ(0)
+                .scale(1, 1, 1)
+                .build());
+
         mCameraTexture = new SurfaceTexture(mTextureId);
         mCameraTexture.setOnFrameAvailableListener(this);
 
-        Log.d(TAG, "starting camera preview");
         try {
             mCamera.setPreviewTexture(mCameraTexture);
         } catch (IOException ioe) {
@@ -226,14 +244,10 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
         // Latch the next frame from the camera.
         mDisplaySurface.makeCurrent();
         mCameraTexture.updateTexImage();
-        mCameraTexture.getTransformMatrix(mTmpMatrix);
+        mCameraTexture.getTransformMatrix(mTexMatrix);
 
-        // Fill the SurfaceView with it.
-        SurfaceView sv = (SurfaceView) findViewById(R.id.text_on_preview_surfaceview);
-        int viewWidth = sv.getWidth();
-        int viewHeight = sv.getHeight();
-        GLES20.glViewport(0, 0, viewWidth, viewHeight);
-        mFullFrameBlit.drawFrame(mTextureId, mTmpMatrix);
+        GLES20.glViewport(0, 0, displaySurfaceView.getWidth(), displaySurfaceView.getHeight());
+        mVideoSprite.draw(mProgram, mDisplayProjectionMatrix, mTexMatrix);
         mDisplaySurface.swapBuffers();
     }
 

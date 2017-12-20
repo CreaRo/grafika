@@ -17,7 +17,6 @@
 package com.android.grafika.gles;
 
 import android.opengl.Matrix;
-import android.util.Log;
 
 /**
  * Base class for a 2d object.  Includes position, scale, rotation, and flat-shaded color.
@@ -180,9 +179,6 @@ public class Sprite2d {
                 mDrawable.getVertexStride());
     }
 
-    /**
-     * Draws the rectangle with the supplied program and projection matrix.
-     */
     public void draw(Texture2dProgram program, float[] projectionMatrix) {
         // Compute model/view/projection matrix.
         Matrix.multiplyMM(mScratchMatrix, 0, projectionMatrix, 0, getModelViewMatrix(), 0);
@@ -190,6 +186,19 @@ public class Sprite2d {
         program.draw(mScratchMatrix, mDrawable.getVertexArray(), 0,
                 mDrawable.getVertexCount(), mDrawable.getCoordsPerVertex(),
                 mDrawable.getVertexStride(), GlUtil.IDENTITY_MATRIX, mDrawable.getTexCoordArray(),
+                mTextureId, mDrawable.getTexCoordStride());
+    }
+
+    /**
+     * Draws the rectangle with the supplied program and projection matrix.
+     */
+    public void draw(Texture2dProgram program, float[] projectionMatrix, float[] texMatrix) {
+        // Compute model/view/projection matrix.
+        Matrix.multiplyMM(mScratchMatrix, 0, projectionMatrix, 0, getModelViewMatrix(), 0);
+
+        program.draw(mScratchMatrix, mDrawable.getVertexArray(), 0,
+                mDrawable.getVertexCount(), mDrawable.getCoordsPerVertex(),
+                mDrawable.getVertexStride(), texMatrix, mDrawable.getTexCoordArray(),
                 mTextureId, mDrawable.getTexCoordStride());
     }
 
