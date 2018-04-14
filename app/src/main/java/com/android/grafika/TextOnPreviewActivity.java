@@ -1,6 +1,7 @@
 package com.android.grafika;
 
 import android.app.Activity;
+import android.graphics.Color;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.opengl.GLES11Ext;
@@ -22,6 +23,7 @@ import com.android.grafika.gles.WindowSurface;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.util.Random;
 
 /**
  * Demonstrates capturing video into a ring buffer.  When the "capture" button is clicked,
@@ -40,9 +42,9 @@ public class TextOnPreviewActivity extends Activity implements
         SurfaceTexture.OnFrameAvailableListener {
     private static final String TAG = MainActivity.TAG;
     private final float[] mTexMatrix = new float[16];
+    Random random = new Random();
     private InputCamera inputCamera;
     private float[] mDisplayProjectionMatrix = new float[16];
-
     private EglCore mEglCore;
     private WindowSurface mDisplaySurface;
     private SurfaceTexture mCameraTexture;  // receives the output from the camera preview
@@ -52,6 +54,13 @@ public class TextOnPreviewActivity extends Activity implements
     private MainHandler mHandler;
     private SurfaceView displaySurfaceView;
     private int lutTextureId;
+    private int[] colors = new int[]{
+            Color.BLUE,
+            Color.RED,
+            Color.YELLOW,
+            Color.GREEN,
+            Color.CYAN,
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -201,10 +210,42 @@ public class TextOnPreviewActivity extends Activity implements
     private void setLut() {
         lutTextureId = mLutProgram.createTextureObject(GLES20.GL_TEXTURE_2D);
 
-        byte[] data = new byte[256];
-        for (int i = 0; i < data.length; i++)
-            data[i] = 0x11;
+        int[] colorArray = new int[256];
+        byte[] data = new byte[4 * colorArray.length];
+        for (int i = 0; i < colorArray.length; i++) {
+            colorArray[i] = getRandomColor(i);
+            data[i * 4 + 0] = byteToInt(colorArray[i], 16);
+            data[i * 4 + 1] = byteToInt(colorArray[i], 8);
+            data[i * 4 + 2] = byteToInt(colorArray[i], 0);
+            data[i * 4 + 3] = byteToInt(colorArray[i], 24);
+        }
+
+        /*for (int i = 0; i < data.length; i++) {
+            if (i < 256) data[i] = 0x44; // red
+            else if (i < 2 * 256) data[i] = 0x44; // green
+            else if (i < 3 * 256) data[i] = 0x44; // blue
+            else if (i < 4 * 256) data[i] = 0x79; // alpha
+        }*/
         mLutProgram.setLutTexture(data, lutTextureId);
+    }
+
+    private int getRandomColor(int index) {
+    /*
+    <color name="highlighted_text_holo_dark">#6633b5e5</color>
+    <color name="highlighted_text_holo_light">#6633b5e5</color>
+    <color name="link_text_holo_dark">#5c5cff</color>
+    <color name="link_text_holo_light">#0000ee</color>
+    */
+        return index < 50 ? 0xFF4876FF :
+                index < 100 ? 0xFF436EEE :
+                        index < 150 ? 0xFF3A5FCD :
+                                index < 200 ? 0xFF27408B :
+                                        0xFF3333FF;
+        // return Color.BLUE;
+    }
+
+    private byte byteToInt(int i, int j) {
+        return (byte) (i >> j);
     }
 
     @Override   // SurfaceHolder.Callback

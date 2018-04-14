@@ -36,7 +36,7 @@ public class LutProgram {
                     "uniform samplerExternalOES sTexture;\n" +
                     "uniform sampler2D lutTexture;\n" +
                     "void main() {\n" +
-                    "   float lum = texture2D(sTexture, vTextureCoord).g;" +
+                    "   float lum = texture2D(sTexture, vTextureCoord).r;" +
                     "   lum = clamp(lum, 0.0, 1.0);" +
                     "   gl_FragColor = texture2D(lutTexture, vec2(lum, 0.5));\n" +
                     //"   gl_FragColor = vec4(lum,lum,lum,1);" +
@@ -104,7 +104,7 @@ public class LutProgram {
         GLES20.glTexParameterf(textureTarget, GLES20.GL_TEXTURE_MIN_FILTER,
                 GLES20.GL_NEAREST);
         GLES20.glTexParameterf(textureTarget, GLES20.GL_TEXTURE_MAG_FILTER,
-                GLES20.GL_LINEAR);
+                GLES20.GL_NEAREST);
         GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_WRAP_S,
                 GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_WRAP_T,
@@ -116,7 +116,7 @@ public class LutProgram {
 
     public void setLutTexture(byte[] data, int textureId) {
         this.lutTextureId = textureId;
-        ByteBuffer buffer = ByteBuffer.allocateDirect(4 * 256);
+        ByteBuffer buffer = ByteBuffer.allocateDirect(data.length);
         buffer.put(data);
         buffer.position(0);
 
