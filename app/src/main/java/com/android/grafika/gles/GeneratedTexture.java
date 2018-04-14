@@ -26,10 +26,9 @@ import java.nio.ByteBuffer;
 public class GeneratedTexture {
     //private static final String TAG = GlUtil.TAG;
 
-    public enum Image { COARSE, FINE };
-
     // Basic colors, in little-endian RGBA.
     private static final int BLACK = 0x00000000;
+
     private static final int RED = 0x000000ff;
     private static final int GREEN = 0x0000ff00;
     private static final int BLUE = 0x00ff0000;
@@ -41,22 +40,19 @@ public class GeneratedTexture {
     private static final int HALF = (int) 0x80000000L;
     private static final int LOW = (int) 0x40000000L;
     private static final int TRANSP = 0;
-
-    private static final int GRID[] = new int[] {    // must be 16 elements
-        OPAQUE|RED,     OPAQUE|YELLOW,  OPAQUE|GREEN,   OPAQUE|MAGENTA,
-        OPAQUE|WHITE,   LOW|RED,        LOW|GREEN,      OPAQUE|YELLOW,
-        OPAQUE|MAGENTA, TRANSP|GREEN,   HALF|RED,       OPAQUE|BLACK,
-        OPAQUE|CYAN,    OPAQUE|MAGENTA, OPAQUE|CYAN,    OPAQUE|BLUE,
+    private static final int GRID[] = new int[]{    // must be 16 elements
+            OPAQUE | RED, OPAQUE | YELLOW, OPAQUE | GREEN, OPAQUE | MAGENTA,
+            OPAQUE | WHITE, LOW | RED, LOW | GREEN, OPAQUE | YELLOW,
+            OPAQUE | MAGENTA, TRANSP | GREEN, HALF | RED, OPAQUE | BLACK,
+            OPAQUE | CYAN, OPAQUE | MAGENTA, OPAQUE | CYAN, OPAQUE | BLUE,
     };
-
-    private static final int TEX_SIZE = 64;         // must be power of 2
+    private static final int TEX_SIZE_WIDTH = 32, TEX_SIZE_HEIGHT = 32; // must be power of 2
     private static final int FORMAT = GLES20.GL_RGBA;
     private static final int BYTES_PER_PIXEL = 4;   // RGBA
-
     // Generate test image data.  This must come after the other values are initialized.
     private static final ByteBuffer sCoarseImageData = generateCoarseData();
     private static final ByteBuffer sFineImageData = generateFineData();
-
+    private static final ByteBuffer sLutImageData = generateLutImageData();
 
     /**
      * Creates a test texture in the current GL context.
@@ -75,10 +71,13 @@ public class GeneratedTexture {
             case FINE:
                 buf = sFineImageData;
                 break;
+            case LUT:
+                buf = sLutImageData;
+                break;
             default:
                 throw new RuntimeException("unknown image");
         }
-        return GlUtil.createImageTexture(buf, TEX_SIZE, TEX_SIZE, FORMAT);
+        return GlUtil.createImageTexture(buf, TEX_SIZE_WIDTH, TEX_SIZE_HEIGHT, FORMAT);
     }
 
     /**
@@ -96,15 +95,16 @@ public class GeneratedTexture {
      * @return A direct ByteBuffer with the 8888 RGBA data.
      */
     private static ByteBuffer generateCoarseData() {
-        byte[] buf = new byte[TEX_SIZE * TEX_SIZE * BYTES_PER_PIXEL];
-        final int scale = TEX_SIZE / 4;        // convert 64x64 --> 4x4
+        byte[] buf = new byte[TEX_SIZE_WIDTH * TEX_SIZE_HEIGHT * BYTES_PER_PIXEL];
+        final int scaleWidth = TEX_SIZE_WIDTH / 4;        // convert 64x64 --> 4x4
+        final int scaleHeight = TEX_SIZE_HEIGHT / 4;
 
         for (int i = 0; i < buf.length; i += BYTES_PER_PIXEL) {
-            int texRow = (i / BYTES_PER_PIXEL) / TEX_SIZE;
-            int texCol = (i / BYTES_PER_PIXEL) % TEX_SIZE;
+            int texRow = (i / BYTES_PER_PIXEL) / TEX_SIZE_HEIGHT;
+            int texCol = (i / BYTES_PER_PIXEL) % TEX_SIZE_WIDTH;
 
-            int gridRow = texRow / scale;  // 0-3
-            int gridCol = texCol / scale;  // 0-3
+            int gridRow = texRow / scaleHeight;  // 0-3
+            int gridCol = texCol / scaleWidth;  // 0-3
             int gridIndex = (gridRow * 4) + gridCol;  // 0-15
 
             int color = GRID[gridIndex];
@@ -125,9 +125,9 @@ public class GeneratedTexture {
             // pre-multiply colors and store in buffer
             float alphaM = alpha / 255.0f;
             buf[i] = (byte) (red * alphaM);
-            buf[i+1] = (byte) (green * alphaM);
-            buf[i+2] = (byte) (blue * alphaM);
-            buf[i+3] = (byte) alpha;
+            buf[i + 1] = (byte) (green * alphaM);
+            buf[i + 2] = (byte) (blue * alphaM);
+            buf[i + 3] = (byte) alpha;
         }
 
         ByteBuffer byteBuf = ByteBuffer.allocateDirect(buf.length);
@@ -142,20 +142,32 @@ public class GeneratedTexture {
      * @return A direct ByteBuffer with the 8888 RGBA data.
      */
     private static ByteBuffer generateFineData() {
-        byte[] buf = new byte[TEX_SIZE * TEX_SIZE * BYTES_PER_PIXEL];
+        byte[] buf = new byte[TEX_SIZE_WIDTH * TEX_SIZE_WIDTH * BYTES_PER_PIXEL];
 
         // top/left: single-pixel red/blue
-        checkerPattern(buf, 0, 0, TEX_SIZE / 2, TEX_SIZE / 2,
-                OPAQUE|RED, OPAQUE|BLUE, 0x01);
+        checkerPattern(buf, 0, 0, TEX_SIZE_WIDTH / 2, TEX_SIZE_HEIGHT / 2,
+                OPAQUE | RED, OPAQUE | BLUE, 0x01);
         // bottom/right: two-pixel red/green
-        checkerPattern(buf, TEX_SIZE / 2, TEX_SIZE / 2, TEX_SIZE, TEX_SIZE,
-                OPAQUE|RED, OPAQUE|GREEN, 0x02);
+        checkerPattern(buf, TEX_SIZE_WIDTH / 2, TEX_SIZE_HEIGHT / 2,
+                TEX_SIZE_WIDTH, TEX_SIZE_HEIGHT,
+                OPAQUE | RED, OPAQUE | GREEN, 0x02);
         // bottom/left: four-pixel blue/green
-        checkerPattern(buf, 0, TEX_SIZE / 2, TEX_SIZE / 2, TEX_SIZE,
-                OPAQUE|BLUE, OPAQUE|GREEN, 0x04);
+        checkerPattern(buf, 0, TEX_SIZE_HEIGHT / 2, TEX_SIZE_WIDTH / 2,
+                TEX_SIZE_HEIGHT,
+                OPAQUE | BLUE, OPAQUE | GREEN, 0x04);
         // top/right: eight-pixel black/white
-        checkerPattern(buf, TEX_SIZE / 2, 0, TEX_SIZE, TEX_SIZE / 2,
-                OPAQUE|WHITE, OPAQUE|BLACK, 0x08);
+        checkerPattern(buf, TEX_SIZE_WIDTH / 2, 0,
+                TEX_SIZE_WIDTH, TEX_SIZE_HEIGHT / 2,
+                OPAQUE | WHITE, OPAQUE | BLACK, 0x08);
+
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect(buf.length);
+        byteBuf.put(buf);
+        byteBuf.position(0);
+        return byteBuf;
+    }
+
+    private static ByteBuffer generateLutImageData() {
+        byte[] buf = new byte[TEX_SIZE_WIDTH * TEX_SIZE_WIDTH * BYTES_PER_PIXEL];
 
         ByteBuffer byteBuf = ByteBuffer.allocateDirect(buf.length);
         byteBuf.put(buf);
@@ -164,9 +176,9 @@ public class GeneratedTexture {
     }
 
     private static void checkerPattern(byte[] buf, int left, int top, int right, int bottom,
-            int color1, int color2, int bit) {
+                                       int color1, int color2, int bit) {
         for (int row = top; row < bottom; row++) {
-            int rowOffset = row * TEX_SIZE * BYTES_PER_PIXEL;
+            int rowOffset = row * TEX_SIZE_WIDTH * BYTES_PER_PIXEL;
             for (int col = left; col < right; col++) {
                 int offset = rowOffset + col * BYTES_PER_PIXEL;
                 int color;
@@ -185,10 +197,12 @@ public class GeneratedTexture {
                 // pre-multiply colors and store in buffer
                 float alphaM = alpha / 255.0f;
                 buf[offset] = (byte) (red * alphaM);
-                buf[offset+1] = (byte) (green * alphaM);
-                buf[offset+2] = (byte) (blue * alphaM);
-                buf[offset+3] = (byte) alpha;
+                buf[offset + 1] = (byte) (green * alphaM);
+                buf[offset + 2] = (byte) (blue * alphaM);
+                buf[offset + 3] = (byte) alpha;
             }
         }
     }
+
+    public enum Image {COARSE, FINE, LUT}
 }

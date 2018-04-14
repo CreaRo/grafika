@@ -1,14 +1,9 @@
 package com.android.grafika;
 
 import android.app.Activity;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.PorterDuff;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
+import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.Matrix;
 import android.os.Bundle;
@@ -21,9 +16,8 @@ import android.view.SurfaceView;
 import com.android.grafika.camera.InputCamera;
 import com.android.grafika.gles.Drawable2d;
 import com.android.grafika.gles.EglCore;
-import com.android.grafika.gles.GlUtil;
+import com.android.grafika.gles.LutProgram;
 import com.android.grafika.gles.Sprite3d;
-import com.android.grafika.gles.Texture2dProgram;
 import com.android.grafika.gles.WindowSurface;
 
 import java.io.IOException;
@@ -41,7 +35,8 @@ import java.lang.ref.WeakReference;
  * through our Handler.  That causes us to render the new frame to the display and to
  * our video encoder.
  */
-public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Callback,
+public class TextOnPreviewActivity extends Activity implements
+        SurfaceHolder.Callback,
         SurfaceTexture.OnFrameAvailableListener {
     private static final String TAG = MainActivity.TAG;
     private final float[] mTexMatrix = new float[16];
@@ -52,22 +47,18 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
     private WindowSurface mDisplaySurface;
     private SurfaceTexture mCameraTexture;  // receives the output from the camera preview
     private Sprite3d mVideoSprite;
-    private Texture2dProgram mVideoProgram;
-
+    private LutProgram mLutProgram;
     private Camera mCamera;
-
     private MainHandler mHandler;
-
     private SurfaceView displaySurfaceView;
-    private Texture2dProgram mLogoProgram;
-    private Sprite3d mLogoRect;
+    private int lutTextureId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_text_on_preview);
 
-        inputCamera = InputCamera.useFrontCamera();
+        inputCamera = InputCamera.useBackCamera();
 
         displaySurfaceView = (SurfaceView) findViewById(R.id.text_on_preview_surfaceview);
         SurfaceHolder sh = displaySurfaceView.getHolder();
@@ -131,7 +122,7 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
         float cameraPreviewThousandFps = CameraUtils.chooseFixedPreviewFps(parms,
                 desiredFps * 1000);
 
-        // Give the camera a hint that we're recording video.  This can have a big
+        // Give the camera a hint that we're recording video. This can have a big
         // impact on frame rate.
         parms.setRecordingHint(true);
         mCamera.setDisplayOrientation(orientation);
@@ -183,8 +174,8 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
 
         mVideoSprite = new Sprite3d(new Drawable2d(inputCamera.getDisplayWidth(),
                 inputCamera.getDisplayHeight()));
-        mVideoProgram = new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT);
-        int videoTextureId = mVideoProgram.createTextureObject();
+        mLutProgram = new LutProgram();
+        int videoTextureId = mLutProgram.createTextureObject(GLES11Ext.GL_TEXTURE_EXTERNAL_OES);
         mVideoSprite.setTextureId(videoTextureId);
 
         mVideoSprite.transform(new Sprite3d.Transformer()
@@ -194,7 +185,7 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
                 .scale(1, 1, 1)
                 .build());
 
-        setLogoSprite();
+        setLut();
 
         mCameraTexture = new SurfaceTexture(videoTextureId);
         mCameraTexture.setOnFrameAvailableListener(this);
@@ -207,39 +198,13 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
         mCamera.startPreview();
     }
 
-    private void setLogoSprite() {
-        Bitmap logoBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.ic_logo_128);
-        int logoHeight = logoBitmap.getHeight();
-        int logoWidth = logoBitmap.getWidth();
+    private void setLut() {
+        lutTextureId = mLutProgram.createTextureObject(GLES20.GL_TEXTURE_2D);
 
-        Log.d(TAG, "Video sprite : " + logoWidth + " " + logoHeight);
-
-        mLogoProgram = new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_2D);
-        mLogoRect = new Sprite3d(new Drawable2d(logoWidth, logoHeight));
-        int logoTextureId = mLogoProgram.createTextureObject();
-        mLogoRect.setTextureId(logoTextureId);
-        mLogoProgram.setBitmap(logoBitmap, logoTextureId);
-        logoBitmap.recycle();
-        mLogoRect.transform(new Sprite3d.Transformer()
-                .translate(0, 0, 0)
-                .scale(1.0f, 1.0f, 1.0f)
-                .build());
-    }
-
-    public Bitmap fromText(String text, int textSize, int textColor) {
-        Paint paint = new Paint();
-        paint.setTextSize(textSize);
-        paint.setColor(Color.WHITE);
-        float baseline = -paint.ascent(); // ascent() is negative
-        int width = (int) (paint.measureText(text) + 1.0f);
-        int height = (int) (baseline + paint.descent() + 1.0f);
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        bitmap.setHasAlpha(true);
-        Canvas canvas = new Canvas(bitmap);
-        // canvas.drawColor(Color.argb(0, 255, 255, 255));
-        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
-        canvas.drawText(text, 0, baseline, paint);
-        return bitmap;
+        byte[] data = new byte[256];
+        for (int i = 0; i < data.length; i++)
+            data[i] = 0x11;
+        mLutProgram.setLutTexture(data, lutTextureId);
     }
 
     @Override   // SurfaceHolder.Callback
@@ -284,10 +249,8 @@ public class TextOnPreviewActivity extends Activity implements SurfaceHolder.Cal
 
         GLES20.glViewport(0, 0, displaySurfaceView.getWidth(), displaySurfaceView.getHeight());
 
-        mVideoProgram.clearScreen();
-        mVideoSprite.draw(mVideoProgram, mDisplayProjectionMatrix, mTexMatrix);
-
-        mLogoRect.draw(mLogoProgram, mDisplayProjectionMatrix, GlUtil.IDENTITY_MATRIX);
+        mLutProgram.clearScreen();
+        mVideoSprite.draw(mLutProgram, mDisplayProjectionMatrix, mTexMatrix, lutTextureId);
 
         mDisplaySurface.swapBuffers();
     }

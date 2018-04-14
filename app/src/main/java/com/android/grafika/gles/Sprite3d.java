@@ -44,6 +44,16 @@ public class Sprite3d {
 
     }
 
+    public void draw(LutProgram program, float[] projectionMatrix, float[] texMatrix,
+                     int lutTextureId) {
+        Matrix.multiplyMM(scratchMatrix, 0, projectionMatrix, 0, modelMatrix, 0);
+        program.draw(scratchMatrix, drawable.getVertexArray(), 0,
+                drawable.getVertexCount(), drawable.getCoordsPerVertex(),
+                drawable.getVertexStride(), texMatrix, drawable.getTexCoordArray(),
+                textureId, drawable.getTexCoordStride(), lutTextureId);
+
+    }
+
     /*following work only if order of rotation multiplication is ZYX*/
 
     public float getRotationX() {

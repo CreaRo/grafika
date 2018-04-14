@@ -60,36 +60,16 @@ public class CircularEncoder {
     private MediaCodec mEncoder;
 
     /**
-     * Callback function definitions.  CircularEncoder caller must provide one.
-     */
-    public interface Callback {
-        /**
-         * Called some time after saveVideo(), when all data has been written to the
-         * output file.
-         *
-         * @param status Zero means success, nonzero indicates failure.
-         */
-        void fileSaveComplete(int status);
-
-        /**
-         * Called occasionally.
-         *
-         * @param totalTimeMsec Total length, in milliseconds, of buffered video.
-         */
-        void bufferStatus(long totalTimeMsec);
-    }
-
-    /**
      * Configures encoder, and prepares the input Surface.
      *
-     * @param width Width of encoded video, in pixels.  Should be a multiple of 16.
-     * @param height Height of encoded video, in pixels.  Usually a multiple of 16 (1080 is ok).
-     * @param bitRate Target bit rate, in bits.
-     * @param frameRate Expected frame rate.
+     * @param width          Width of encoded video, in pixels.  Should be a multiple of 16.
+     * @param height         Height of encoded video, in pixels.  Usually a multiple of 16 (1080 is ok).
+     * @param bitRate        Target bit rate, in bits.
+     * @param frameRate      Expected frame rate.
      * @param desiredSpanSec How many seconds of video we want to have in our buffer at any time.
      */
     public CircularEncoder(int width, int height, int bitRate, int frameRate, int desiredSpanSec,
-            Callback cb) throws IOException {
+                           Callback cb) throws IOException {
         // The goal is to size the buffer so that we can accumulate N seconds worth of video,
         // where N is passed in as "desiredSpanSec".  If the codec generates data at roughly
         // the requested bit rate, we can compute it as time * bitRate / bitsPerByte.
@@ -197,6 +177,26 @@ public class CircularEncoder {
     }
 
     /**
+     * Callback function definitions.  CircularEncoder caller must provide one.
+     */
+    public interface Callback {
+        /**
+         * Called some time after saveVideo(), when all data has been written to the
+         * output file.
+         *
+         * @param status Zero means success, nonzero indicates failure.
+         */
+        void fileSaveComplete(int status);
+
+        /**
+         * Called occasionally.
+         *
+         * @param totalTimeMsec Total length, in milliseconds, of buffered video.
+         */
+        void bufferStatus(long totalTimeMsec);
+    }
+
+    /**
      * Object that encapsulates the encoder thread.
      * <p>
      * We want to sleep until there's work to do.  We don't actually know when a new frame
@@ -212,20 +212,18 @@ public class CircularEncoder {
      * thread has been joined.
      */
     private static class EncoderThread extends Thread {
+        private final Object mLock = new Object();
         private MediaCodec mEncoder;
         private MediaFormat mEncodedFormat;
         private MediaCodec.BufferInfo mBufferInfo;
-
         private EncoderHandler mHandler;
         private CircularEncoderBuffer mEncBuffer;
         private CircularEncoder.Callback mCallback;
         private int mFrameNum;
-
-        private final Object mLock = new Object();
         private volatile boolean mReady = false;
 
         public EncoderThread(MediaCodec mediaCodec, CircularEncoderBuffer encBuffer,
-                CircularEncoder.Callback callback) {
+                             CircularEncoder.Callback callback) {
             mEncoder = mediaCodec;
             mEncBuffer = encBuffer;
             mCallback = callback;

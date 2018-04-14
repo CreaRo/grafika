@@ -31,17 +31,20 @@ import java.nio.FloatBuffer;
 public class GlUtil {
     public static final String TAG = "Grafika";
 
-    /** Identity matrix for general use.  Don't modify or life will get weird. */
+    /**
+     * Identity matrix for general use.  Don't modify or life will get weird.
+     */
     public static final float[] IDENTITY_MATRIX;
+    private static final int SIZEOF_FLOAT = 4;
+
     static {
         IDENTITY_MATRIX = new float[16];
         Matrix.setIdentityM(IDENTITY_MATRIX, 0);
     }
 
-    private static final int SIZEOF_FLOAT = 4;
 
-
-    private GlUtil() {}     // do not instantiate
+    private GlUtil() {
+    }     // do not instantiate
 
     /**
      * Creates a new program from the supplied vertex and fragment shaders.
@@ -61,7 +64,7 @@ public class GlUtil {
         int program = GLES20.glCreateProgram();
         checkGlError("glCreateProgram");
         if (program == 0) {
-            Log.e(TAG, "Could not create program");
+            throw new RuntimeException("Could not create program");
         }
         GLES20.glAttachShader(program, vertexShader);
         checkGlError("glAttachShader");
@@ -127,8 +130,8 @@ public class GlUtil {
     /**
      * Creates a texture from raw data.
      *
-     * @param data Image data, in a "direct" ByteBuffer.
-     * @param width Texture width, in pixels (not bytes).
+     * @param data   Image data, in a "direct" ByteBuffer.
+     * @param width  Texture width, in pixels (not bytes).
      * @param height Texture height, in pixels.
      * @param format Image data format (use constant appropriate for glTexImage2D(), e.g. GL_RGBA).
      * @return Handle to texture.

@@ -16,9 +16,9 @@
 
 package com.android.grafika;
 
-import android.os.Bundle;
 import android.app.Activity;
 import android.graphics.SurfaceTexture;
+import android.os.Bundle;
 import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
@@ -52,9 +52,9 @@ public class DoubleDecodeActivity extends Activity {
 
         if (!sVideoRunning) {
             sBlob[0] = new VideoBlob((TextureView) findViewById(R.id.double1_texture_view),
-                    ContentManager.MOVIE_SLIDERS, 0);
+                    "/storage/sdcard0/stab_resized.mp4", 0);
             sBlob[1] = new VideoBlob((TextureView) findViewById(R.id.double2_texture_view),
-                    ContentManager.MOVIE_EIGHT_RECTS, 1);
+                    "/storage/sdcard0/stab_resized.mp4", 1);
             sVideoRunning = true;
         } else {
             sBlob[0].recreateView((TextureView) findViewById(R.id.double1_texture_view));
@@ -96,7 +96,7 @@ public class DoubleDecodeActivity extends Activity {
     private static class VideoBlob implements TextureView.SurfaceTextureListener {
         private final String LTAG;
         private TextureView mTextureView;
-        private int mMovieTag;
+        private String filePath;
 
         private SurfaceTexture mSavedSurfaceTexture;
         private PlayMovieThread mPlayThread;
@@ -105,14 +105,13 @@ public class DoubleDecodeActivity extends Activity {
         /**
          * Constructs the VideoBlob.
          *
-         * @param view The TextureView object we want to draw into.
-         * @param movieTag Which movie to play.
+         * @param view    The TextureView object we want to draw into.
          * @param ordinal The blob's ordinal (only used for log messages).
          */
-        public VideoBlob(TextureView view, int movieTag, int ordinal) {
+        public VideoBlob(TextureView view, String filePath, int ordinal) {
             LTAG = TAG + ordinal;
-            Log.d(LTAG, "VideoBlob: tag=" + movieTag + " view=" + view);
-            mMovieTag = movieTag;
+            Log.d(LTAG, "VideoBlob: tag=" + filePath + " view=" + view);
+            this.filePath = filePath;
 
             mCallback = new SpeedControlCallback();
 
@@ -159,7 +158,7 @@ public class DoubleDecodeActivity extends Activity {
             if (mSavedSurfaceTexture == null) {
                 mSavedSurfaceTexture = st;
 
-                File sliders = ContentManager.getInstance().getPath(mMovieTag);
+                File sliders = new File(filePath);
                 mPlayThread = new PlayMovieThread(sliders, new Surface(st), mCallback);
             } else {
                 // Can't do it here in Android <= 4.4.  The TextureView doesn't add a
