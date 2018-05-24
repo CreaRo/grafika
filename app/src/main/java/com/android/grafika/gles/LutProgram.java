@@ -101,14 +101,10 @@ public class LutProgram {
         GLES20.glBindTexture(textureTarget, texId);
         GlUtil.checkGlError("glBindTexture " + texId);
 
-        GLES20.glTexParameterf(textureTarget, GLES20.GL_TEXTURE_MIN_FILTER,
-                GLES20.GL_NEAREST);
-        GLES20.glTexParameterf(textureTarget, GLES20.GL_TEXTURE_MAG_FILTER,
-                GLES20.GL_NEAREST);
-        GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_WRAP_S,
-                GLES20.GL_CLAMP_TO_EDGE);
-        GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_WRAP_T,
-                GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameterf(textureTarget, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+        GLES20.glTexParameterf(textureTarget, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
+        GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
         GlUtil.checkGlError("glTexParameter");
 
         return texId;

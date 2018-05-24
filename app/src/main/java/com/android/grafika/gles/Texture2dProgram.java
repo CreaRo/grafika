@@ -41,18 +41,56 @@ public class Texture2dProgram {
     public static final int KERNEL_SIZE = 9;
     private static final String TAG = GlUtil.TAG;
     // Simple vertex shader, used for all programs.
-    private static final String VERTEX_SHADER =
-            "uniform mat4 uMVPMatrix;\n" +
-                    "uniform mat4 uTexMatrix;\n" +
-                    "attribute vec4 aPosition;\n" +
-                    "attribute vec4 aTextureCoord;\n" +
-                    "varying vec2 vTextureCoord;\n" +
-                    "void main() {\n" +
-                    "    gl_Position = uMVPMatrix * aPosition;\n" +
-                    "    vTextureCoord = (uTexMatrix * aTextureCoord).xy;\n" +
-                    "}\n";
 
-    // Simple fragment shader for use with "normal" 2D textures.
+    private static final String VERTEX_SHADER = "" +
+            /*"attribute vec4 aPosition;\n" +
+            "attribute vec4 aTextureCoord;\n" +
+            "varying vec2 vTextureCoord;\n" +
+            "void main() {\n" +
+            "    gl_Position = aPosition;\n" +
+            "    vTextureCoord = aTextureCoord.xy;\n" +
+            "}\n";*/
+
+            "uniform mat4 uTexMatrix;\n" +
+            "attribute vec4 aPosition;\n" +
+            "attribute vec4 aTextureCoord;\n" +
+
+            "uniform highp float texelWidth;\n" +
+            "uniform highp float texelHeight;\n" +
+
+            " varying vec2 leftTextureCoordinate;\n" +
+            " varying vec2 rightTextureCoordinate;\n" +
+            "\n" +
+            " varying vec2 topTextureCoordinate;\n" +
+            " varying vec2 topLeftTextureCoordinate;\n" +
+            " varying vec2 topRightTextureCoordinate;\n" +
+            "\n" +
+            " varying vec2 bottomTextureCoordinate;\n" +
+            " varying vec2 bottomLeftTextureCoordinate;\n" +
+            " varying vec2 bottomRightTextureCoordinate;\n" +
+
+            "varying vec2 vTextureCoord;\n" +
+            "void main() {\n" +
+            "   gl_Position = aPosition;\n" +
+
+            "   vec2 widthStep = vec2(texelWidth, 0.0);\n" +
+            "   vec2 heightStep = vec2(0.0, texelHeight);\n" +
+            "   vec2 widthHeightStep = vec2(texelWidth, texelHeight);\n" +
+            "   vec2 widthNegativeHeightStep = vec2(texelWidth, -texelHeight);\n" +
+
+            "   vTextureCoord = aTextureCoord.xy;\n" +
+            "   leftTextureCoordinate = aTextureCoord.xy - widthStep;\n" +
+            "   rightTextureCoordinate = aTextureCoord.xy + widthStep;\n" +
+
+            "   topTextureCoordinate = aTextureCoord.xy - heightStep;\n" +
+            "   topLeftTextureCoordinate = aTextureCoord.xy - widthHeightStep;\n" +
+            "   topRightTextureCoordinate = aTextureCoord.xy + widthNegativeHeightStep;\n" +
+
+            "   bottomTextureCoordinate = aTextureCoord.xy + heightStep;\n" +
+            "   bottomLeftTextureCoordinate = aTextureCoord.xy - widthNegativeHeightStep;\n" +
+            "   bottomRightTextureCoordinate = aTextureCoord.xy + widthHeightStep;" +
+            "}\n";
+
     private static final String FRAGMENT_SHADER_2D =
             "precision mediump float;\n" +
                     "varying vec2 vTextureCoord;\n" +
@@ -60,17 +98,41 @@ public class Texture2dProgram {
                     "void main() {\n" +
                     "    gl_FragColor = texture2D(sTexture, vTextureCoord);\n" +
                     "}\n";
-
-    // Simple fragment shader for use with external 2D textures (e.g. what we get from
-    // SurfaceTexture).
-    private static final String FRAGMENT_SHADER_EXT =
+    private static final String FRAGMENT_SHADER_EXT = "" +
             "#extension GL_OES_EGL_image_external : require\n" +
-                    "precision mediump float;\n" +
-                    "varying vec2 vTextureCoord;\n" +
-                    "uniform samplerExternalOES sTexture;\n" +
-                    "void main() {\n" +
-                    "    gl_FragColor = texture2D(sTexture, vTextureCoord);\n" +
-                    "}\n";
+            "precision highp float;\n" +
+            "uniform samplerExternalOES sTexture;\n" +
+            "uniform mediump mat3 zeConvolutionMatrix;\n" +
+
+            "varying vec2 vTextureCoord;\n" +
+            "varying vec2 leftTextureCoordinate;\n" +
+            "varying vec2 rightTextureCoordinate;\n" +
+
+            "varying vec2 topTextureCoordinate;\n" +
+            "varying vec2 topLeftTextureCoordinate;\n" +
+            "varying vec2 topRightTextureCoordinate;\n" +
+
+            "varying vec2 bottomTextureCoordinate;\n" +
+            "varying vec2 bottomLeftTextureCoordinate;\n" +
+            "varying vec2 bottomRightTextureCoordinate;\n" +
+
+            "void main() {\n" +
+            "   mediump vec4 bottomColor = texture2D(sTexture, bottomTextureCoordinate);\n" +
+            "   mediump vec4 bottomLeftColor = texture2D(sTexture, bottomLeftTextureCoordinate);\n" +
+            "   mediump vec4 bottomRightColor = texture2D(sTexture, bottomRightTextureCoordinate);\n" +
+            "   mediump vec4 centerColor = texture2D(sTexture, vTextureCoord);\n" +
+            "   mediump vec4 leftColor = texture2D(sTexture, leftTextureCoordinate);\n" +
+            "   mediump vec4 rightColor = texture2D(sTexture, rightTextureCoordinate);\n" +
+            "   mediump vec4 topColor = texture2D(sTexture, topTextureCoordinate);\n" +
+            "   mediump vec4 topRightColor = texture2D(sTexture, topRightTextureCoordinate);\n" +
+            "   mediump vec4 topLeftColor = texture2D(sTexture, topLeftTextureCoordinate);\n" +
+
+            "   mediump vec4 resultColor = topLeftColor * zeConvolutionMatrix[0][0] + topColor * zeConvolutionMatrix[0][1] + topRightColor * zeConvolutionMatrix[0][2];\n" +
+            "   resultColor += leftColor * zeConvolutionMatrix[1][0] + centerColor * zeConvolutionMatrix[1][1] + rightColor * zeConvolutionMatrix[1][2];\n" +
+            "   resultColor += bottomLeftColor * zeConvolutionMatrix[2][0] + bottomColor * zeConvolutionMatrix[2][1] + bottomRightColor * zeConvolutionMatrix[2][2];" +
+
+            "   gl_FragColor = resultColor;\n" +
+            "}\n";
 
     // Fragment shader that converts color to black & white with a simple transformation.
     private static final String FRAGMENT_SHADER_EXT_BW =
@@ -108,17 +170,22 @@ public class Texture2dProgram {
                     "    }\n" +
                     "    gl_FragColor = sum;\n" +
                     "}\n";
+    // final float[] convolutionMatrix = {0, -1, 0, -1, 5, -1, 0, -1, 0};
+    final float[] convolutionMatrix = {0, 1, 0, 1, -4, 1, 0, 1, 0};
     private ProgramType mProgramType;
     // Handles to the GL program and various components of it.
     private int mProgramHandle;
-    private int muMVPMatrixLoc;
-    private int muTexMatrixLoc;
+    // private int muMVPMatrixLoc;
+    // private int muTexMatrixLoc;
     private int muKernelLoc;
     private int muTexOffsetLoc;
     private int muColorAdjustLoc;
     private int maPositionLoc;
     private int maTextureCoordLoc;
     private int mTextureTarget;
+    private int muConvolutionMatrixLoc;
+    private int muTexelHeightLoc, muTexelWidthLoc;
+
     private float[] mKernel = new float[KERNEL_SIZE];
     private float[] mTexOffset;
     private float mColorAdjust;
@@ -158,12 +225,23 @@ public class Texture2dProgram {
 
         maPositionLoc = GLES20.glGetAttribLocation(mProgramHandle, "aPosition");
         GlUtil.checkLocation(maPositionLoc, "aPosition");
+
         maTextureCoordLoc = GLES20.glGetAttribLocation(mProgramHandle, "aTextureCoord");
         GlUtil.checkLocation(maTextureCoordLoc, "aTextureCoord");
-        muMVPMatrixLoc = GLES20.glGetUniformLocation(mProgramHandle, "uMVPMatrix");
-        GlUtil.checkLocation(muMVPMatrixLoc, "uMVPMatrix");
-        muTexMatrixLoc = GLES20.glGetUniformLocation(mProgramHandle, "uTexMatrix");
-        GlUtil.checkLocation(muTexMatrixLoc, "uTexMatrix");
+
+        muTexelWidthLoc = GLES20.glGetUniformLocation(mProgramHandle, "texelWidth");
+        GlUtil.checkLocation(muTexelWidthLoc, "muTexelWidthLoc");
+
+        muTexelHeightLoc = GLES20.glGetUniformLocation(mProgramHandle, "texelHeight");
+        GlUtil.checkLocation(muTexelHeightLoc, "muTexelHeightLoc");
+
+        muConvolutionMatrixLoc = GLES20.glGetUniformLocation(mProgramHandle, "zeConvolutionMatrix");
+        GlUtil.checkLocation(muConvolutionMatrixLoc, "zeConvolutionMatrix");
+
+        // muMVPMatrixLoc = GLES20.glGetUniformLocation(mProgramHandle, "uMVPMatrix");
+        // GlUtil.checkLocation(muMVPMatrixLoc, "uMVPMatrix");
+        // muTexMatrixLoc = GLES20.glGetUniformLocation(mProgramHandle, "uTexMatrix");
+        // GlUtil.checkLocation(muTexMatrixLoc, "uTexMatrix");
         muKernelLoc = GLES20.glGetUniformLocation(mProgramHandle, "uKernel");
         if (muKernelLoc < 0) {
             // no kernel in this one
@@ -297,12 +375,12 @@ public class Texture2dProgram {
         GLES20.glBindTexture(mTextureTarget, textureId);
 
         // Copy the model / view / projection matrix over.
-        GLES20.glUniformMatrix4fv(muMVPMatrixLoc, 1, false, mvpMatrix, 0);
-        GlUtil.checkGlError("glUniformMatrix4fv");
+        // GLES20.glUniformMatrix4fv(muMVPMatrixLoc, 1, false, mvpMatrix, 0);
+        // GlUtil.checkGlError("glUniformMatrix4fv");
 
         // Copy the texture transformation matrix over.
-        GLES20.glUniformMatrix4fv(muTexMatrixLoc, 1, false, texMatrix, 0);
-        GlUtil.checkGlError("glUniformMatrix4fv");
+        // GLES20.glUniformMatrix4fv(muTexMatrixLoc, 1, false, texMatrix, 0);
+        // GlUtil.checkGlError("glUniformMatrix4fv");
 
         // Enable the "aPosition" vertex attribute.
         GLES20.glEnableVertexAttribArray(maPositionLoc);
@@ -321,6 +399,15 @@ public class Texture2dProgram {
         GLES20.glVertexAttribPointer(maTextureCoordLoc, 2,
                 GLES20.GL_FLOAT, false, texStride, texBuffer);
         GlUtil.checkGlError("glVertexAttribPointer");
+
+        GLES20.glUniformMatrix3fv(muConvolutionMatrixLoc, 1, false, convolutionMatrix, 0);
+        GlUtil.checkGlError("glUniformMatrix3fv");
+
+        GLES20.glUniform1f(muTexelWidthLoc, 929);
+        GlUtil.checkGlError("muTexelWidthLoc");
+
+        GLES20.glUniform1f(muTexelHeightLoc, 523);
+        GlUtil.checkGlError("muTexelHeightLoc");
 
         // Populate the convolution kernel, if present.
         if (muKernelLoc >= 0) {

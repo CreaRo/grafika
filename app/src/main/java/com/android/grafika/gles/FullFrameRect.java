@@ -16,8 +16,6 @@
 
 package com.android.grafika.gles;
 
-import android.opengl.Matrix;
-
 /**
  * This class essentially represents a viewport-sized sprite that will be rendered with
  * a texture, usually from an external source like the camera or video decoder.
@@ -30,7 +28,7 @@ public class FullFrameRect {
      * Prepares the object.
      *
      * @param program The program to use.  FullFrameRect takes ownership, and will release
-     *     the program when no longer needed.
+     *                the program when no longer needed.
      */
     public FullFrameRect(Texture2dProgram program) {
         mProgram = program;

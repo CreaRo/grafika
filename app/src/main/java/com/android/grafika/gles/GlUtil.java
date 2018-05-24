@@ -123,7 +123,7 @@ public class GlUtil {
      */
     public static void checkLocation(int location, String label) {
         if (location < 0) {
-            throw new RuntimeException("Unable to locate '" + label + "' in program");
+            throw new RuntimeException("Unable to locate '" + label + "' in program location = " + location);
         }
     }
 
