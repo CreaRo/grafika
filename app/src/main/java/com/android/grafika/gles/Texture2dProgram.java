@@ -51,6 +51,9 @@ public class Texture2dProgram {
             "    vTextureCoord = aTextureCoord.xy;\n" +
             "}\n";*/
 
+            /*"    gl_Position = uMVPMatrix * aPosition;\n" +
+            "    vTextureCoord = (uTexMatrix * aTextureCoord).xy;\n" +*/
+
             "uniform mat4 uTexMatrix;\n" +
             "attribute vec4 aPosition;\n" +
             "attribute vec4 aTextureCoord;\n" +
@@ -170,8 +173,10 @@ public class Texture2dProgram {
                     "    }\n" +
                     "    gl_FragColor = sum;\n" +
                     "}\n";
+    float[] convolutionMatrix = {0, 0, 0, 0, 1, 0, 0, 0, 0};
+    // final float[] convolutionMatrix = {1, 1, 1, 1, 1, 1, 1, 1, 1};
     // final float[] convolutionMatrix = {0, -1, 0, -1, 5, -1, 0, -1, 0};
-    final float[] convolutionMatrix = {0, 1, 0, 1, -4, 1, 0, 1, 0};
+    //    final float[] convolutionMatrix = {0, 1, 0, 1, -4, 1, 0, 1, 0};
     private ProgramType mProgramType;
     // Handles to the GL program and various components of it.
     private int mProgramHandle;
@@ -259,6 +264,10 @@ public class Texture2dProgram {
             setKernel(new float[]{0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f}, 0f);
             setTexSize(256, 256);
         }
+    }
+
+    public void setConvolutionMatrix(float[] convolutionMatrix) {
+        this.convolutionMatrix = convolutionMatrix;
     }
 
     /**
@@ -403,10 +412,10 @@ public class Texture2dProgram {
         GLES20.glUniformMatrix3fv(muConvolutionMatrixLoc, 1, false, convolutionMatrix, 0);
         GlUtil.checkGlError("glUniformMatrix3fv");
 
-        GLES20.glUniform1f(muTexelWidthLoc, 929);
+        GLES20.glUniform1f(muTexelWidthLoc, 1.0f / 929.0f);
         GlUtil.checkGlError("muTexelWidthLoc");
 
-        GLES20.glUniform1f(muTexelHeightLoc, 523);
+        GLES20.glUniform1f(muTexelHeightLoc, 1.0f / 523.0f);
         GlUtil.checkGlError("muTexelHeightLoc");
 
         // Populate the convolution kernel, if present.

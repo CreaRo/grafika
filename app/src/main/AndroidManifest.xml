@@ -53,7 +53,13 @@
             android:label="@string/title_activity_live_camera"></activity>
         <activity
             android:name=".CameraCaptureActivity"
-            android:label="@string/title_activity_camera_capture"></activity>
+            android:label="@string/title_activity_camera_capture">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".TextureViewGLActivity"
             android:label="@string/title_activity_texture_view_gl"></activity>
@@ -80,13 +86,7 @@
             android:label="@string/title_activity_double_decode"></activity>
         <activity
             android:name=".ContinuousCaptureActivity"
-            android:label="@string/title_activity_continuous_capture">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:label="@string/title_activity_continuous_capture"></activity>
         <activity
             android:name=".SoftInputSurfaceActivity"
             android:label="@string/title_activity_soft_input_surface"></activity>
